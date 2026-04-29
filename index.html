@@ -8,7 +8,7 @@
 <style>
 body {
   font-family: Arial, sans-serif;
-  background: #f4f6f9;
+  background: linear-gradient(180deg, #eef4ff, #f7f8fb);
   margin: 0;
 }
 
@@ -21,30 +21,37 @@ body {
 h1 {
   text-align: center;
   margin: 8px 0 18px;
+  color: #0f172a;
+  letter-spacing: 1px;
 }
 
 .box {
   background: white;
-  border-radius: 16px;
-  padding: 14px;
+  border-radius: 18px;
+  padding: 16px;
   margin-bottom: 14px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.08);
 }
 
 label {
   font-weight: bold;
-  color: #444;
+  color: #334155;
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 8px;
 }
 
 input {
   width: 100%;
-  padding: 16px;
-  font-size: 20px;
-  border-radius: 12px;
-  border: 1px solid #ccc;
+  padding: 17px;
+  font-size: 21px;
+  border-radius: 14px;
+  border: 2px solid #dbe3ef;
   box-sizing: border-box;
+  outline: none;
+}
+
+input:focus {
+  border-color: #2563eb;
 }
 
 button {
@@ -54,7 +61,7 @@ button {
   font-size: 17px;
   font-weight: bold;
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
   background: #2563eb;
   color: white;
 }
@@ -65,32 +72,98 @@ button.clear {
 
 .card {
   background: white;
-  border-radius: 16px;
+  border-radius: 22px;
+  overflow: hidden;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.12);
+  border: 1px solid #e2e8f0;
+}
+
+.card-header {
+  background: #1d4ed8;
+  color: white;
   padding: 16px;
-  margin-bottom: 12px;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+  text-align: center;
 }
 
-.row {
-  margin-bottom: 11px;
+.card-header .small {
+  font-size: 13px;
+  opacity: 0.9;
+  margin-bottom: 4px;
 }
 
-.label {
+.card-header .do-title {
+  font-size: 22px;
   font-weight: bold;
-  color: #555;
-  font-size: 14px;
-}
-
-.value {
-  font-size: 19px;
   word-break: break-word;
 }
 
-.do-title {
-  font-size: 23px;
+.main-info {
+  padding: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.info-box {
+  border-radius: 18px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+}
+
+.info-box.primary {
+  background: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.info-box.warning {
+  background: #fff7ed;
+  border-color: #fed7aa;
+}
+
+.info-label {
+  font-size: 14px;
   font-weight: bold;
-  color: #1d4ed8;
-  margin-bottom: 14px;
+  color: #64748b;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+}
+
+.info-value {
+  font-size: 25px;
+  font-weight: bold;
+  color: #0f172a;
+  word-break: break-word;
+}
+
+.info-box.warning .info-value {
+  color: #c2410c;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 0 16px 16px;
+}
+
+.detail-item {
+  background: #f1f5f9;
+  border-radius: 14px;
+  padding: 10px;
+  text-align: center;
+}
+
+.detail-label {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: bold;
+  margin-bottom: 5px;
+}
+
+.detail-value {
+  font-size: 15px;
+  color: #0f172a;
+  font-weight: bold;
 }
 
 .notfound, .status {
@@ -124,17 +197,6 @@ button.clear {
 const API = "https://script.google.com/macros/s/AKfycbwvxLxdtMM8sktrZNlDb-Gco3MXiSVaLY-U7W072nzyolYx3FTtIZsAYl6QcVTaYM9vDQ/exec";
 const SHEET_NAME = "DO BY DAY";
 
-/*
-  Mapping đúng từ cột L đến S:
-  L = DO No.
-  M = Ship-To ID
-  N = Shipto Nm
-  O = Số lượng
-  P = Picker
-  Q = Packer
-  R = Số kiện
-  S = Vị trí
-*/
 const DO_FIELD = "DO No.";
 
 let allRows = [];
@@ -253,14 +315,42 @@ async function searchDO() {
 function renderCard(row) {
   return `
     <div class="card">
-      <div class="do-title">DO: ${escapeHtml(row["DO No."] || "")}</div>
-      <div class="row"><div class="label">Ship-To ID</div><div class="value">${escapeHtml(row["Ship-To ID"] || "-")}</div></div>
-      <div class="row"><div class="label">Shipto Nm</div><div class="value">${escapeHtml(row["Shipto Nm"] || "-")}</div></div>
-      <div class="row"><div class="label">Số lượng</div><div class="value">${escapeHtml(row["Số lượng"] || "-")}</div></div>
-      <div class="row"><div class="label">Picker</div><div class="value">${escapeHtml(row["Picker"] || "-")}</div></div>
-      <div class="row"><div class="label">Packer</div><div class="value">${escapeHtml(row["Packer"] || "-")}</div></div>
-      <div class="row"><div class="label">Số kiện</div><div class="value">${escapeHtml(row["Số kiện"] || "-")}</div></div>
-      <div class="row"><div class="label">Vị trí</div><div class="value">${escapeHtml(row["Vị trí"] || "-")}</div></div>
+      <div class="card-header">
+        <div class="small">DO No.</div>
+        <div class="do-title">${escapeHtml(row["DO No."] || "")}</div>
+      </div>
+
+      <div class="main-info">
+        <div class="info-box primary">
+          <div class="info-label">ID Store</div>
+          <div class="info-value">${escapeHtml(row["Ship-To ID"] || "-")}</div>
+        </div>
+
+        <div class="info-box">
+          <div class="info-label">Số lượng</div>
+          <div class="info-value">${escapeHtml(row["Số lượng"] || "-")}</div>
+        </div>
+
+        <div class="info-box warning">
+          <div class="info-label">Vị trí</div>
+          <div class="info-value">${escapeHtml(row["Vị trí"] || "-")}</div>
+        </div>
+      </div>
+
+      <div class="detail-grid">
+        <div class="detail-item">
+          <div class="detail-label">Picker</div>
+          <div class="detail-value">${escapeHtml(row["Picker"] || "-")}</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Packer</div>
+          <div class="detail-value">${escapeHtml(row["Packer"] || "-")}</div>
+        </div>
+        <div class="detail-item">
+          <div class="detail-label">Số kiện</div>
+          <div class="detail-value">${escapeHtml(row["Số kiện"] || "-")}</div>
+        </div>
+      </div>
     </div>
   `;
 }
