@@ -40,8 +40,8 @@ label {
 
 input {
   width: 100%;
-  padding: 15px;
-  font-size: 19px;
+  padding: 16px;
+  font-size: 20px;
   border-radius: 12px;
   border: 1px solid #ccc;
   box-sizing: border-box;
@@ -59,20 +59,20 @@ button {
   color: white;
 }
 
-button.secondary {
-  background: #16a34a;
+button.clear {
+  background: #64748b;
 }
 
 .card {
   background: white;
   border-radius: 16px;
-  padding: 15px;
+  padding: 16px;
   margin-bottom: 12px;
   box-shadow: 0 5px 15px rgba(0,0,0,0.08);
 }
 
 .row {
-  margin-bottom: 10px;
+  margin-bottom: 11px;
 }
 
 .label {
@@ -82,15 +82,15 @@ button.secondary {
 }
 
 .value {
-  font-size: 18px;
+  font-size: 19px;
   word-break: break-word;
 }
 
 .do-title {
-  font-size: 22px;
+  font-size: 23px;
   font-weight: bold;
   color: #1d4ed8;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .notfound, .status {
@@ -114,12 +114,7 @@ button.secondary {
     <label>Scan / nhập DO No.</label>
     <input id="doInput" placeholder="Scan DO..." autofocus autocomplete="off">
     <button onclick="searchDO()">Search DO</button>
-  </div>
-
-  <div class="box">
-    <label>Search tất cả DO theo ngày</label>
-    <input id="dateInput" type="date">
-    <button class="secondary" onclick="searchByDate()">Search theo ngày</button>
+    <button class="clear" onclick="clearSearch()">Clear</button>
   </div>
 
   <div id="result"></div>
@@ -130,24 +125,22 @@ const API = "https://script.google.com/macros/s/AKfycbwvxLxdtMM8sktrZNlDb-Gco3MX
 const SHEET_NAME = "DO BY DAY";
 
 /*
-  Mapping dữ liệu từ cột L đến S:
-  L = Ngày
-  M = DO No.
-  N = Ship-To ID
-  O = Shipto Nm
-  P = Số lượng
-  Q = Picker
-  R = Packer
-  S = Số kiện / Vị trí
+  Mapping đúng từ cột L đến S:
+  L = DO No.
+  M = Ship-To ID
+  N = Shipto Nm
+  O = Số lượng
+  P = Picker
+  Q = Packer
+  R = Số kiện
+  S = Vị trí
 */
-const DATE_FIELD = "Ngày";
 const DO_FIELD = "DO No.";
 
 let allRows = [];
 let scanTimer = null;
 
 window.onload = async function () {
-  document.getElementById("dateInput").valueAsDate = new Date();
   await loadData();
   document.getElementById("doInput").focus();
 };
@@ -156,7 +149,7 @@ document.getElementById("doInput").addEventListener("input", function () {
   clearTimeout(scanTimer);
   scanTimer = setTimeout(() => {
     const value = document.getElementById("doInput").value.trim();
-    if (value.length >= 5) searchDO();
+    if (value.length >= 8) searchDO();
   }, 350);
 });
 
@@ -175,7 +168,11 @@ async function fetchRows() {
 
   const data = await res.json();
   const rawRows = data.rows || [];
-  return rawRows.map(normalizeRowFromLtoS).filter(row => row[DO_FIELD]);
+
+  return rawRows
+    .slice(1)
+    .map(normalizeRowFromLtoS)
+    .filter(row => row[DO_FIELD]);
 }
 
 async function loadData() {
@@ -184,7 +181,7 @@ async function loadData() {
 
   try {
     allRows = await fetchRows();
-    resultDiv.innerHTML = `<div class="status">Sẵn sàng scan DO. Đã tải ${allRows.length} dòng từ sheet ${SHEET_NAME}.</div>`;
+    resultDiv.innerHTML = `<div class="status">Sẵn sàng scan DO. Đã tải ${allRows.length} dòng.</div>`;
   } catch (err) {
     console.error(err);
     resultDiv.innerHTML = `<div class="notfound">Không tải được dữ liệu Google Sheet</div>`;
@@ -198,27 +195,25 @@ async function refreshData() {
 function normalizeRowFromLtoS(row) {
   if (Array.isArray(row)) {
     return {
-      "Ngày": row[11] || "",
-      "DO No.": row[12] || "",
-      "Ship-To ID": row[13] || "",
-      "Shipto Nm": row[14] || "",
-      "Số lượng": row[15] || "",
-      "Picker": row[16] || "",
-      "Packer": row[17] || "",
-      "Số kiện": row[18] || "",
+      "DO No.": row[11] || "",
+      "Ship-To ID": row[12] || "",
+      "Shipto Nm": row[13] || "",
+      "Số lượng": row[14] || "",
+      "Picker": row[15] || "",
+      "Packer": row[16] || "",
+      "Số kiện": row[17] || "",
       "Vị trí": row[18] || ""
     };
   }
 
   return {
-    "Ngày": pickValue(row, ["Ngày", "Date", "DATE", "L"]),
-    "DO No.": pickValue(row, ["DO No.", "DO", "DO NO", "DO No", "M"]),
-    "Ship-To ID": pickValue(row, ["Ship-To ID", "Ship To ID", "Shipto ID", "N"]),
-    "Shipto Nm": pickValue(row, ["Shipto Nm", "Shipto Name", "Ship-To Name", "Shipto Nm ", "O"]),
-    "Số lượng": pickValue(row, ["Số lượng", "So luong", "Qty", "Quantity", "P"]),
-    "Picker": pickValue(row, ["Picker", "Q"]),
-    "Packer": pickValue(row, ["Packer", "R"]),
-    "Số kiện": pickValue(row, ["Số kiện", "So kien", "Carton", "S"]),
+    "DO No.": pickValue(row, ["DO No.", "DO", "DO NO", "DO No", "L"]),
+    "Ship-To ID": pickValue(row, ["Ship-To ID", "Ship To ID", "Shipto ID", "M"]),
+    "Shipto Nm": pickValue(row, ["Shipto Nm", "Shipto Name", "Ship-To Name", "N"]),
+    "Số lượng": pickValue(row, ["Số lượng", "So luong", "Qty", "Quantity", "O"]),
+    "Picker": pickValue(row, ["Picker", "P"]),
+    "Packer": pickValue(row, ["Packer", "Q"]),
+    "Số kiện": pickValue(row, ["Số kiện", "So kien", "Carton", "R"]),
     "Vị trí": pickValue(row, ["Vị trí", "Vi tri", "Location", "S"])
   };
 }
@@ -255,41 +250,10 @@ async function searchDO() {
   }
 }
 
-async function searchByDate() {
-  const selectedDate = document.getElementById("dateInput").value;
-  const resultDiv = document.getElementById("result");
-
-  if (!selectedDate) {
-    resultDiv.innerHTML = `<div class="notfound">Vui lòng chọn ngày</div>`;
-    return;
-  }
-
-  resultDiv.innerHTML = `<div class="status">Đang search theo ngày...</div>`;
-
-  try {
-    await refreshData();
-    const matchedRows = allRows.filter(row => normalizeDate(row[DATE_FIELD]) === selectedDate);
-
-    if (!matchedRows.length) {
-      resultDiv.innerHTML = `<div class="notfound">Không có DO trong ngày ${formatDateVN(selectedDate)}</div>`;
-      return;
-    }
-
-    resultDiv.innerHTML = `
-      <div class="status">Tìm thấy ${matchedRows.length} DO ngày ${formatDateVN(selectedDate)}</div>
-      ${matchedRows.map(renderCard).join("")}
-    `;
-  } catch (err) {
-    console.error(err);
-    resultDiv.innerHTML = `<div class="notfound">Lỗi search dữ liệu theo ngày</div>`;
-  }
-}
-
 function renderCard(row) {
   return `
     <div class="card">
       <div class="do-title">DO: ${escapeHtml(row["DO No."] || "")}</div>
-      <div class="row"><div class="label">Ngày</div><div class="value">${escapeHtml(displayDate(row["Ngày"]) || "-")}</div></div>
       <div class="row"><div class="label">Ship-To ID</div><div class="value">${escapeHtml(row["Ship-To ID"] || "-")}</div></div>
       <div class="row"><div class="label">Shipto Nm</div><div class="value">${escapeHtml(row["Shipto Nm"] || "-")}</div></div>
       <div class="row"><div class="label">Số lượng</div><div class="value">${escapeHtml(row["Số lượng"] || "-")}</div></div>
@@ -301,42 +265,18 @@ function renderCard(row) {
   `;
 }
 
+function clearSearch() {
+  document.getElementById("doInput").value = "";
+  document.getElementById("result").innerHTML = `<div class="status">Sẵn sàng scan DO</div>`;
+  document.getElementById("doInput").focus();
+}
+
 function cleanDO(value) {
-  return String(value || "").trim().replace(/\.0$/, "").toUpperCase();
-}
-
-function normalizeDate(value) {
-  if (!value) return "";
-
-  const text = String(value).trim();
-  const parts = text.split(/[\/\-\.]/);
-  if (parts.length === 3 && parts[0].length <= 2) {
-    const d = parts[0].padStart(2, "0");
-    const m = parts[1].padStart(2, "0");
-    const y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
-    return `${y}-${m}-${d}`;
-  }
-
-  const parsed = new Date(value);
-  if (!isNaN(parsed.getTime())) {
-    const y = parsed.getFullYear();
-    const m = String(parsed.getMonth() + 1).padStart(2, "0");
-    const d = String(parsed.getDate()).padStart(2, "0");
-    return `${y}-${m}-${d}`;
-  }
-
-  return text;
-}
-
-function displayDate(value) {
-  const normalized = normalizeDate(value);
-  if (!normalized || !normalized.includes("-")) return value;
-  return formatDateVN(normalized);
-}
-
-function formatDateVN(dateText) {
-  const [y, m, d] = dateText.split("-");
-  return `${d}/${m}/${y}`;
+  return String(value || "")
+    .trim()
+    .replace(/\.0$/, "")
+    .replace(/\s+/g, "")
+    .toUpperCase();
 }
 
 function escapeHtml(value) {
