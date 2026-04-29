@@ -187,26 +187,36 @@ let allRows = [];
 let rowMap = new Map();
 let scanTimer = null;
 let isLoading = false;
+let lastScannedValue = "";
+let lastSearchTime = 0;
 
 window.onload = async function () {
   await loadData();
   document.getElementById("doInput").focus();
 };
 
-document.getElementById("doInput").addEventListener("input", function () {
+const doInput = document.getElementById("doInput");
+
+doInput.addEventListener("input", function () {
   clearTimeout(scanTimer);
-  scanTimer = setTimeout(() => {
-    const value = document.getElementById("doInput").value.trim();
-    if (value.length >= 8) searchDO();
-  }, 250);
+  scanTimer = setTimeout(() => autoSearchFromScan(), 180);
 });
 
-document.getElementById("doInput").addEventListener("keydown", function (event) {
-  if (event.key === "Enter") {
+doInput.addEventListener("change", function () {
+  autoSearchFromScan();
+});
+
+doInput.addEventListener("keydown", function (event) {
+  if (event.key === "Enter" || event.key === "Tab") {
     event.preventDefault();
-    searchDO();
+    autoSearchFromScan(true);
   }
 });
+
+// Fallback mạnh cho một số PDA chỉ đổ text vào input nhưng không trigger input/change ổn định.
+setInterval(() => {
+  autoSearchFromScan();
+}, 400);
 
 async function fetchRows() {
   const res = await fetch(API, {
@@ -271,6 +281,19 @@ function pickValue(row, keys) {
   return "";
 }
 
+function autoSearchFromScan(force = false) {
+  const value = document.getElementById("doInput").value.trim();
+  const now = Date.now();
+
+  if (!value) return;
+  if (!force && value.length < 8) return;
+  if (!force && value === lastScannedValue && now - lastSearchTime < 1500) return;
+
+  lastScannedValue = value;
+  lastSearchTime = now;
+  searchDO();
+}
+
 function searchDO() {
   const doNo = document.getElementById("doInput").value.trim();
   if (!doNo) return;
@@ -322,6 +345,8 @@ function renderCard(row) {
 }
 
 function clearSearch() {
+  lastScannedValue = "";
+  lastSearchTime = 0;
   document.getElementById("doInput").value = "";
   document.getElementById("result").innerHTML = `<div class="status">Sẵn sàng scan DO</div>`;
   document.getElementById("doInput").focus();
