@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tracking DO</title>
+
+<style>
+body {
+  font-family: Arial, sans-serif;
+  background: #f4f6f9;
+  margin: 0;
+}
+
+.container {
+  max-width: 560px;
+  margin: auto;
+  padding: 18px;
+}
+
+h1 {
+  text-align: center;
+  margin: 8px 0 18px;
+}
+
+.box {
+  background: white;
+  border-radius: 16px;
+  padding: 14px;
+  margin-bottom: 14px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+label {
+  font-weight: bold;
+  color: #444;
+  display: block;
+  margin-bottom: 7px;
+}
+
+input {
+  width: 100%;
+  padding: 15px;
+  font-size: 19px;
+  border-radius: 12px;
+  border: 1px solid #ccc;
+  box-sizing: border-box;
+}
+
+button {
+  width: 100%;
+  padding: 15px;
+  margin-top: 10px;
+  font-size: 17px;
+  font-weight: bold;
+  border: none;
+  border-radius: 12px;
+  background: #2563eb;
+  color: white;
+}
+
+button.secondary {
+  background: #16a34a;
+}
+
+.card {
+  background: white;
+  border-radius: 16px;
+  padding: 15px;
+  margin-bottom: 12px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+}
+
+.row {
+  margin-bottom: 10px;
+}
+
+.label {
+  font-weight: bold;
+  color: #555;
+  font-size: 14px;
+}
+
+.value {
+  font-size: 18px;
+  word-break: break-word;
+}
+
+.do-title {
+  font-size: 21px;
+  font-weight: bold;
+  color: #1d4ed8;
+  margin-bottom: 12px;
+}
+
+.notfound, .status {
+  text-align: center;
+  color: #666;
+  padding: 14px;
+}
+
+.notfound {
+  color: #dc2626;
+  font-weight: bold;
+}
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>TRACKING DO</h1>
+
+  <div class="box">
+    <label>Scan / nhập DO No.</label>
+    <input id="doInput" placeholder="Scan DO..." autofocus autocomplete="off">
+    <button onclick="searchDO()">Search DO</button>
+  </div>
+
+  <div class="box">
+    <label>Search tất cả DO theo ngày</label>
+    <input id="dateInput" type="date">
+    <button class="secondary" onclick="searchByDate()">Search theo ngày</button>
+  </div>
+
+  <div id="result"></div>
+</div>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbxJl4vMd8YJlmrZv90Wo2pUh8-mxLno2oPPisB6NkN3FjoYbFYSncu3JN-MdrXYwNdfSA/exec";
+const SHEET_NAME = "DAY BY DAY";
+
+// Nếu cột ngày trong Sheet không tên là "Ngày", đổi tại đây.
+const DATE_COLUMN = "Ngày";
+
+let allRows = [];
+let scanTimer = null;
+
+window.onload = async function () {
+  document.getElementById("dateInput").valueAsDate = new Date();
+  await loadData();
+  document.getElementById("doInput").focus();
+};
+
+// Auto search sau khi PDA scan xong.
+// PDA thường nhập rất nhanh rồi dừng hoặc gửi phím Enter.
+document.getElementById("doInput").addEventListener("input", function () {
+  clearTimeout(scanTimer);
+  scanTimer = setTimeout(() => {
+    const value = document.getElementById("doInput").value.trim();
+    if (value.length >= 6) searchDO();
+  }, 350);
+});
+
+// Nếu máy scan gửi Enter thì search ngay.
+document.getElementById("doInput").addEventListener("keydown", function (event) {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    searchDO();
+  }
+});
+
+async function loadData() {
+  const resultDiv = document.getElementById("result");
+  resultDiv.innerHTML = `<div class="status">Đang tải dữ liệu...</div>`;
+
+  try {
+    const res = await fetch(API, {
+      method: "POST",
+      body: JSON.stringify({ action: "read", sheet: SHEET_NAME })
+    });
+
+    const data = await res.json();
+    allRows = data.rows || [];
+    resultDiv.innerHTML = `<div class="status">Sẵn sàng scan DO</div>`;
+  } catch (err) {
+    resultDiv.innerHTML = `<div class="notfound">Không tải được dữ liệu Google Sheet</div>`;
+  }
+}
+
+async function refreshData() {
+  const res = await fetch(API, {
+    method: "POST",
+    body: JSON.stringify({ action: "read", sheet: SHEET_NAME })
+  });
+  const data = await res.json();
+  allRows = data.rows || [];
+}
+
+async function searchDO() {
+  const doNo = document.getElementById("doInput").value.trim();
+  if (!doNo) return;
+
+  await refreshData();
+
+  const found = allRows.find(r => String(r["DO No."]).trim() === doNo);
+  const resultDiv = document.getElementById("result");
+
+  if (!found) {
+    resultDiv.innerHTML = `<div class="notfound">Không tìm thấy DO: ${escapeHtml(doNo)}</div>`;
+    return;
+  }
+
+  resultDiv.innerHTML = renderCard(found);
+}
+
+async function searchByDate() {
+  const selectedDate = document.getElementById("dateInput").value;
+  const resultDiv = document.getElementById("result");
+
+  if (!selectedDate) {
+    resultDiv.innerHTML = `<div class="notfound">Vui lòng chọn ngày</div>`;
+    return;
+  }
+
+  await refreshData();
+
+  const matchedRows = allRows.filter(row => normalizeDate(row[DATE_COLUMN]) === selectedDate);
+
+  if (!matchedRows.length) {
+    resultDiv.innerHTML = `<div class="notfound">Không có DO trong ngày ${formatDateVN(selectedDate)}</div>`;
+    return;
+  }
+
+  resultDiv.innerHTML = `
+    <div class="status">Tìm thấy ${matchedRows.length} DO ngày ${formatDateVN(selectedDate)}</div>
+    ${matchedRows.map(renderCard).join("")}
+  `;
+}
+
+function renderCard(row) {
+  return `
+    <div class="card">
+      <div class="do-title">${escapeHtml(row["DO No."] || "")}</div>
+      <div class="row"><div class="label">Ship-To ID</div><div class="value">${escapeHtml(row["Ship-To ID"] || "-")}</div></div>
+      <div class="row"><div class="label">Shipto Nm</div><div class="value">${escapeHtml(row["Shipto Nm"] || "-")}</div></div>
+      <div class="row"><div class="label">Số lượng</div><div class="value">${escapeHtml(row["Số lượng"] || "-")}</div></div>
+      <div class="row"><div class="label">Picker</div><div class="value">${escapeHtml(row["Picker"] || "-")}</div></div>
+      <div class="row"><div class="label">Packer</div><div class="value">${escapeHtml(row["Packer"] || "-")}</div></div>
+      <div class="row"><div class="label">Số kiện</div><div class="value">${escapeHtml(row["Số kiện"] || "-")}</div></div>
+      <div class="row"><div class="label">Vị trí</div><div class="value">${escapeHtml(row["Vị trí"] || "-")}</div></div>
+    </div>
+  `;
+}
+
+function normalizeDate(value) {
+  if (!value) return "";
+
+  // Trường hợp Google Sheet trả về yyyy-mm-dd hoặc chuỗi có thể parse được.
+  const parsed = new Date(value);
+  if (!isNaN(parsed.getTime())) {
+    const y = parsed.getFullYear();
+    const m = String(parsed.getMonth() + 1).padStart(2, "0");
+    const d = String(parsed.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  // Trường hợp nhập dạng dd/mm/yyyy trong Sheet.
+  const text = String(value).trim();
+  const parts = text.split(/[\/\-\.]/);
+  if (parts.length === 3) {
+    const d = parts[0].padStart(2, "0");
+    const m = parts[1].padStart(2, "0");
+    const y = parts[2].length === 2 ? "20" + parts[2] : parts[2];
+    return `${y}-${m}-${d}`;
+  }
+
+  return text;
+}
+
+function formatDateVN(dateText) {
+  const [y, m, d] = dateText.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+</script>
+</body>
+</html>
