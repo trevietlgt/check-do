@@ -70,6 +70,10 @@ button.clear {
   background: #64748b;
 }
 
+button.reload {
+  background: #16a34a;
+}
+
 .card {
   background: white;
   border-radius: 22px;
@@ -129,7 +133,7 @@ button.clear {
 }
 
 .info-value {
-  font-size: 25px;
+  font-size: 27px;
   font-weight: bold;
   color: #0f172a;
   word-break: break-word;
@@ -139,31 +143,11 @@ button.clear {
   color: #c2410c;
 }
 
-.detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  padding: 0 16px 16px;
-}
-
-.detail-item {
-  background: #f1f5f9;
-  border-radius: 14px;
-  padding: 10px;
-  text-align: center;
-}
-
-.detail-label {
-  font-size: 12px;
-  color: #64748b;
+.store-name {
+  font-size: 17px;
+  color: #475569;
   font-weight: bold;
-  margin-bottom: 5px;
-}
-
-.detail-value {
-  font-size: 15px;
-  color: #0f172a;
-  font-weight: bold;
+  margin-top: 6px;
 }
 
 .notfound, .status {
@@ -188,6 +172,7 @@ button.clear {
     <input id="doInput" placeholder="Scan DO..." autofocus autocomplete="off">
     <button onclick="searchDO()">Search DO</button>
     <button class="clear" onclick="clearSearch()">Clear</button>
+    <button class="reload" onclick="loadData()">Tải lại dữ liệu</button>
   </div>
 
   <div id="result"></div>
@@ -196,11 +181,12 @@ button.clear {
 <script>
 const API = "https://script.google.com/macros/s/AKfycbwvxLxdtMM8sktrZNlDb-Gco3MXiSVaLY-U7W072nzyolYx3FTtIZsAYl6QcVTaYM9vDQ/exec";
 const SHEET_NAME = "DO BY DAY";
-
 const DO_FIELD = "DO No.";
 
 let allRows = [];
+let rowMap = new Map();
 let scanTimer = null;
+let isLoading = false;
 
 window.onload = async function () {
   await loadData();
@@ -212,7 +198,7 @@ document.getElementById("doInput").addEventListener("input", function () {
   scanTimer = setTimeout(() => {
     const value = document.getElementById("doInput").value.trim();
     if (value.length >= 8) searchDO();
-  }, 350);
+  }, 250);
 });
 
 document.getElementById("doInput").addEventListener("keydown", function (event) {
@@ -238,20 +224,22 @@ async function fetchRows() {
 }
 
 async function loadData() {
+  if (isLoading) return;
+  isLoading = true;
+
   const resultDiv = document.getElementById("result");
   resultDiv.innerHTML = `<div class="status">Đang tải dữ liệu...</div>`;
 
   try {
     allRows = await fetchRows();
+    rowMap = new Map(allRows.map(row => [cleanDO(row[DO_FIELD]), row]));
     resultDiv.innerHTML = `<div class="status">Sẵn sàng scan DO. Đã tải ${allRows.length} dòng.</div>`;
   } catch (err) {
     console.error(err);
     resultDiv.innerHTML = `<div class="notfound">Không tải được dữ liệu Google Sheet</div>`;
   }
-}
 
-async function refreshData() {
-  allRows = await fetchRows();
+  isLoading = false;
 }
 
 function normalizeRowFromLtoS(row) {
@@ -261,9 +249,6 @@ function normalizeRowFromLtoS(row) {
       "Ship-To ID": row[12] || "",
       "Shipto Nm": row[13] || "",
       "Số lượng": row[14] || "",
-      "Picker": row[15] || "",
-      "Packer": row[16] || "",
-      "Số kiện": row[17] || "",
       "Vị trí": row[18] || ""
     };
   }
@@ -273,9 +258,6 @@ function normalizeRowFromLtoS(row) {
     "Ship-To ID": pickValue(row, ["Ship-To ID", "Ship To ID", "Shipto ID", "M"]),
     "Shipto Nm": pickValue(row, ["Shipto Nm", "Shipto Name", "Ship-To Name", "N"]),
     "Số lượng": pickValue(row, ["Số lượng", "So luong", "Qty", "Quantity", "O"]),
-    "Picker": pickValue(row, ["Picker", "P"]),
-    "Packer": pickValue(row, ["Packer", "Q"]),
-    "Số kiện": pickValue(row, ["Số kiện", "So kien", "Carton", "R"]),
     "Vị trí": pickValue(row, ["Vị trí", "Vi tri", "Location", "S"])
   };
 }
@@ -289,27 +271,25 @@ function pickValue(row, keys) {
   return "";
 }
 
-async function searchDO() {
+function searchDO() {
   const doNo = document.getElementById("doInput").value.trim();
   if (!doNo) return;
 
   const resultDiv = document.getElementById("result");
-  resultDiv.innerHTML = `<div class="status">Đang search DO...</div>`;
 
-  try {
-    await refreshData();
-    const found = allRows.find(r => cleanDO(r[DO_FIELD]) === cleanDO(doNo));
-
-    if (!found) {
-      resultDiv.innerHTML = `<div class="notfound">Không tìm thấy DO: ${escapeHtml(doNo)}</div>`;
-      return;
-    }
-
-    resultDiv.innerHTML = renderCard(found);
-  } catch (err) {
-    console.error(err);
-    resultDiv.innerHTML = `<div class="notfound">Lỗi search dữ liệu</div>`;
+  if (!rowMap.size) {
+    resultDiv.innerHTML = `<div class="notfound">Dữ liệu chưa tải xong. Bấm Tải lại dữ liệu.</div>`;
+    return;
   }
+
+  const found = rowMap.get(cleanDO(doNo));
+
+  if (!found) {
+    resultDiv.innerHTML = `<div class="notfound">Không tìm thấy DO: ${escapeHtml(doNo)}</div>`;
+    return;
+  }
+
+  resultDiv.innerHTML = renderCard(found);
 }
 
 function renderCard(row) {
@@ -324,6 +304,7 @@ function renderCard(row) {
         <div class="info-box primary">
           <div class="info-label">ID Store</div>
           <div class="info-value">${escapeHtml(row["Ship-To ID"] || "-")}</div>
+          <div class="store-name">${escapeHtml(row["Shipto Nm"] || "")}</div>
         </div>
 
         <div class="info-box">
@@ -334,19 +315,6 @@ function renderCard(row) {
         <div class="info-box warning">
           <div class="info-label">Vị trí</div>
           <div class="info-value">${escapeHtml(row["Vị trí"] || "-")}</div>
-        </div>
-      </div>
-
-      
-          <div class="detail-value">${escapeHtml(row["Picker"] || "-")}</div>
-        </div>
-        <div class="detail-item">
-          <div class="detail-label">Packer</div>
-          <div class="detail-value">${escapeHtml(row["Packer"] || "-")}</div>
-        </div>
-        <div class="detail-item">
-          <div class="detail-label">Số kiện</div>
-          <div class="detail-value">${escapeHtml(row["Số kiện"] || "-")}</div>
         </div>
       </div>
     </div>
