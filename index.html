@@ -248,7 +248,7 @@ function normalizeRowFromLtoS(row) {
       "DO No.": row[11] || "",
       "Ship-To ID": row[12] || "",
       "Shipto Nm": row[13] || "",
-      "Số lượng": row[14] || "",
+      "Số kiện": row[17] || "",
       "Vị trí": row[18] || ""
     };
   }
@@ -257,7 +257,7 @@ function normalizeRowFromLtoS(row) {
     "DO No.": pickValue(row, ["DO No.", "DO", "DO NO", "DO No", "L"]),
     "Ship-To ID": pickValue(row, ["Ship-To ID", "Ship To ID", "Shipto ID", "M"]),
     "Shipto Nm": pickValue(row, ["Shipto Nm", "Shipto Name", "Ship-To Name", "N"]),
-    "Số lượng": pickValue(row, ["Số lượng", "So luong", "Qty", "Quantity", "O"]),
+    "Số kiện": pickValue(row, ["Số kiện", "So kien", "Carton", "R"]),
     "Vị trí": pickValue(row, ["Vị trí", "Vi tri", "Location", "S"])
   };
 }
@@ -308,8 +308,8 @@ function renderCard(row) {
         </div>
 
         <div class="info-box">
-          <div class="info-label">Số lượng</div>
-          <div class="info-value">${escapeHtml(row["Số lượng"] || "-")}</div>
+          <div class="info-label">Số kiện</div>
+          <div class="info-value">${escapeHtml(row["Số kiện"] || "-")}</div>
         </div>
 
         <div class="info-box warning">
